@@ -1,0 +1,28 @@
+apiVersion: configuration.konghq.com/v1
+kind: KongConsumer
+metadata:
+  name: user-service-consumer
+  namespace: rac-app
+  annotations:
+    kubernetes.io/ingress.class: kong
+username: user-service
+credentials:
+  - user-service-jwt-cred
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: user-service-jwt-cred
+  namespace: rac-app
+  annotations:
+    kubernetes.io/ingress.class: kong
+    konghq.com/consumer: user-service-consumer
+  labels:
+    konghq.com/credential: jwt
+type: Opaque
+stringData:
+  kongCredType: jwt
+  key: user-service
+  secret: your-super-secret-jwt-key-change-this-in-production
+  algorithm: HS256
