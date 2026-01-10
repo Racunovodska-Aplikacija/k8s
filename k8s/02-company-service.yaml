@@ -1,22 +1,23 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: user-service-config
+  name: company-service-config
   namespace: rac-app
 data:
   PORT: "3000"
+  GRPC_PORT: "50051"
   NODE_ENV: "production"
   DB_HOST: "postgres"
   DB_PORT: "5432"
   DB_USERNAME: "postgres"
   DB_PASSWORD: "postgres"
-  DB_DATABASE: "userdb"
-  SWAGGER_SERVER_URL: "http://user-service.local"
+  DB_DATABASE: "companyDB"
+  SWAGGER_SERVER_URL: "http://company-service.local"
 ---
 apiVersion: v1
 kind: Secret
 metadata:
-  name: user-service-secrets
+  name: company-service-secrets
   namespace: rac-app
 type: Opaque
 stringData:
@@ -25,36 +26,38 @@ stringData:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: user-service
+  name: company-service
   namespace: rac-app
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: user-service
+      app: company-service
   template:
     metadata:
       labels:
-        app: user-service
+        app: company-service
     spec:
       containers:
-        - name: user-service
-          image: user-service:latest
-          imagePullPolicy: Never
+        - name: company-service
+          image: vidkal/company-service:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 3000
+            - containerPort: 50051
+              name: grpc
           envFrom:
             - configMapRef:
-                name: user-service-config
+                name: company-service-config
             - secretRef:
-                name: user-service-secrets
+                name: company-service-secrets
           resources:
             requests:
-              memory: "512Mi"
-              cpu: "500m"
+              memory: "64Mi"
+              cpu: "50m"
             limits:
-              memory: "1Gi"
-              cpu: "1000m"
+              memory: "128Mi"
+              cpu: "100m"
           livenessProbe:
             httpGet:
               path: /health
@@ -71,12 +74,16 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: user-service
+  name: company-service
   namespace: rac-app
 spec:
   selector:
-    app: user-service
+    app: company-service
   ports:
-    - port: 3000
+    - name: http
+      port: 3000
       targetPort: 3000
+    - name: grpc
+      port: 50051
+      targetPort: 50051
   type: ClusterIP

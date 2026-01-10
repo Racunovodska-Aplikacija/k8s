@@ -1,0 +1,104 @@
+{{- if .Values.ingress.public.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: public-api
+  namespace: {{ .Values.global.namespace }}
+  annotations:
+    kubernetes.io/ingress.class: {{ .Values.kong.ingressClass }}
+    konghq.com/plugins: {{ .Values.kong.corsPlugin.name }}
+spec:
+  ingressClassName: {{ .Values.kong.ingressClass }}
+  rules:
+    - http:
+        paths:
+          - path: /auth
+            pathType: Prefix
+            backend:
+              service:
+                name: user-service
+                port:
+                  number: {{ .Values.userService.port }}
+          - path: /health
+            pathType: Prefix
+            backend:
+              service:
+                name: user-service
+                port:
+                  number: {{ .Values.userService.port }}
+{{- end }}
+
+{{- if .Values.ingress.protected.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: protected-api
+  namespace: {{ .Values.global.namespace }}
+  annotations:
+    kubernetes.io/ingress.class: {{ .Values.kong.ingressClass }}
+    konghq.com/plugins: {{ .Values.kong.corsPlugin.name }},{{ .Values.kong.jwtPlugin.name }}
+spec:
+  ingressClassName: {{ .Values.kong.ingressClass }}
+  rules:
+    - http:
+        paths:
+          - path: /users
+            pathType: Prefix
+            backend:
+              service:
+                name: user-service
+                port:
+                  number: {{ .Values.userService.port }}
+          - path: /companies
+            pathType: Prefix
+            backend:
+              service:
+                name: company-service
+                port:
+                  number: {{ .Values.companyService.ports.http }}
+          - path: /partners
+            pathType: Prefix
+            backend:
+              service:
+                name: partner-service
+                port:
+                  number: {{ .Values.partnerService.ports.http }}
+          - path: /invoices
+            pathType: Prefix
+            backend:
+              service:
+                name: invoice-service
+                port:
+                  number: {{ .Values.invoiceService.port }}
+          - path: /invoice-pdf
+            pathType: Prefix
+            backend:
+              service:
+                name: invoice-to-pdf-service
+                port:
+                  number: {{ .Values.invoiceToPdfService.port }}
+{{- end }}
+
+{{- if .Values.ingress.frontend.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: frontend
+  namespace: {{ .Values.global.namespace }}
+  annotations:
+    kubernetes.io/ingress.class: {{ .Values.kong.ingressClass }}
+spec:
+  ingressClassName: {{ .Values.kong.ingressClass }}
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: {{ .Values.frontend.port }}
+{{- end }}

@@ -40,8 +40,8 @@ spec:
     spec:
       containers:
         - name: partner-service
-          image: partner-service:latest
-          imagePullPolicy: Never
+          image: vidkal/partner-service:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 3000
             - containerPort: 50051
@@ -53,11 +53,11 @@ spec:
                 name: partner-service-secrets
           resources:
             requests:
-              memory: "512Mi"
-              cpu: "500m"
+              memory: "64Mi"
+              cpu: "50m"
             limits:
-              memory: "1Gi"
-              cpu: "1000m"
+              memory: "128Mi"
+              cpu: "100m"
           livenessProbe:
             httpGet:
               path: /health

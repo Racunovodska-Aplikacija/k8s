@@ -1,0 +1,6 @@
+apiVersion: v2
+name: rac-app
+description: Helm chart for rac-app stack
+version: 0.1.0
+appVersion: "1.0.0"
+type: application

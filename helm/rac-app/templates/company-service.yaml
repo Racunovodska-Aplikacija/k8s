@@ -1,0 +1,97 @@
+{{- if .Values.companyService.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: company-service-config
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: company-service
+    {{- include "rac-app.labels" . | nindent 4 }}
+data:
+  {{- range $key, $val := .Values.companyService.env }}
+  {{ $key }}: "{{ $val }}"
+  {{- end }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: company-service
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: company-service
+    {{- include "rac-app.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: company-service
+  template:
+    metadata:
+      labels:
+        app: company-service
+        {{- include "rac-app.labels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: company-service
+          image: {{ .Values.companyService.image }}
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.companyService.ports.http }}
+            - containerPort: {{ .Values.companyService.ports.grpc }}
+              name: grpc
+          envFrom:
+            - configMapRef:
+                name: company-service-config
+            - secretRef:
+              {{- toYaml (dict "name" .Values.companyService.secret.existingSecret "optional" true) | nindent 16 }}
+          env:
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.global.secret.dbCredentialsSecretName }}
+                  key: {{ .Values.global.secret.dbUsernameKey }}
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.global.secret.dbCredentialsSecretName }}
+                  key: {{ .Values.global.secret.dbPasswordKey }}
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.global.secret.jwtSecretName }}
+                  key: {{ .Values.global.secret.jwtSecretKey }}
+          resources:
+            {{- toYaml .Values.companyService.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.companyService.ports.http }}
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.companyService.ports.http }}
+            initialDelaySeconds: 5
+            periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: company-service
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: company-service
+    {{- include "rac-app.labels" . | nindent 4 }}
+spec:
+  selector:
+    app: company-service
+  ports:
+    - name: http
+      port: {{ .Values.companyService.ports.http }}
+      targetPort: {{ .Values.companyService.ports.http }}
+    - name: grpc
+      port: {{ .Values.companyService.ports.grpc }}
+      targetPort: {{ .Values.companyService.ports.grpc }}
+  type: ClusterIP
+{{- end }}

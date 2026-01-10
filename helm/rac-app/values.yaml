@@ -1,0 +1,194 @@
+global:
+  namespace: rac-app
+  createNamespace: true
+  imagePullPolicy: Always
+  secret:
+    jwtSecretName: global-jwt-secret
+    jwtSecretKey: JWT_SECRET
+    dbCredentialsSecretName: postgres-credentials
+    dbUsernameKey: POSTGRES_USER
+    dbPasswordKey: POSTGRES_PASSWORD
+
+postgres:
+  enabled: true
+  image: postgres:15-alpine
+  storage: 2Gi
+  resources:
+    requests:
+      memory: 128Mi
+      cpu: 100m
+    limits:
+      memory: 256Mi
+      cpu: 200m
+  config:
+    POSTGRES_DB: userdb
+  secret:
+    existingSecret: postgres-credentials
+    usernameKey: POSTGRES_USER
+    passwordKey: POSTGRES_PASSWORD
+  service:
+    port: 5432
+
+companyService:
+  enabled: true
+  image: vidkal/company-service:latest
+  ports:
+    http: 3000
+    grpc: 50051
+  env:
+    PORT: "3000"
+    GRPC_PORT: "50051"
+    NODE_ENV: production
+    DB_HOST: postgres
+    DB_PORT: "5432"
+    DB_DATABASE: companyDB
+    SWAGGER_SERVER_URL: http://company-service.local
+  secret:
+    existingSecret: company-service-secrets
+  resources:
+    requests:
+      memory: 64Mi
+      cpu: 50m
+    limits:
+      memory: 128Mi
+      cpu: 100m
+
+partnerService:
+  enabled: true
+  image: vidkal/partner-service:latest
+  ports:
+    http: 3000
+    grpc: 50051
+  env:
+    PORT: "3000"
+    GRPC_PORT: "50051"
+    NODE_ENV: production
+    DB_HOST: postgres
+    DB_PORT: "5432"
+    DB_DATABASE: partnerDB
+    SWAGGER_SERVER_URL: http://partner-service.local
+  secret:
+    existingSecret: partner-service-secrets
+  resources:
+    requests:
+      memory: 64Mi
+      cpu: 50m
+    limits:
+      memory: 128Mi
+      cpu: 100m
+
+userService:
+  enabled: true
+  image: vidkal/user-service:latest
+  port: 3000
+  env:
+    PORT: "3000"
+    NODE_ENV: production
+    DB_HOST: postgres
+    DB_PORT: "5432"
+    DB_DATABASE: userdb
+    SWAGGER_SERVER_URL: http://user-service.local
+  secret:
+    existingSecret: user-service-secrets
+  resources:
+    requests:
+      memory: 64Mi
+      cpu: 50m
+    limits:
+      memory: 128Mi
+      cpu: 100m
+
+invoiceService:
+  enabled: true
+  image: vidkal/invoice-service:latest
+  port: 8000
+  env:
+    DB_HOST: postgres
+    DB_PORT: "5432"
+    DB_DATABASE: invoiceDB
+    COMPANY_SERVICE_URL: http://company-service:3000
+    COMPANY_SERVICE_HOST: company-service
+    COMPANY_SERVICE_GRPC_PORT: "50051"
+    PARTNER_SERVICE_HOST: partner-service
+    PARTNER_SERVICE_GRPC_PORT: "50051"
+    PRODUCT_SERVICE_HOST: product-service
+    PRODUCT_SERVICE_GRPC_PORT: "50051"
+  resources:
+    requests:
+      memory: 64Mi
+      cpu: 50m
+    limits:
+      memory: 128Mi
+      cpu: 100m
+  secret:
+    existingSecret: invoice-service-secrets
+
+invoiceToPdfService:
+  enabled: true
+  image: vidkal/invoice-to-pdf-service:latest
+  port: 8000
+  env:
+    INVOICE_SERVICE_URL: http://invoice-service:8000
+    COMPANY_SERVICE_GRPC_TARGET: company-service:50051
+    PARTNER_SERVICE_GRPC_TARGET: partner-service:50051
+  resources:
+    requests:
+      memory: 64Mi
+      cpu: 50m
+    limits:
+      memory: 128Mi
+      cpu: 100m
+
+frontend:
+  enabled: true
+  image: vidkal/frontend:latest
+  port: 3000
+  env:
+    NEXT_PUBLIC_API_URL: http://9.223.16.228
+  resources:
+    requests:
+      memory: 128Mi
+      cpu: 100m
+    limits:
+      memory: 256Mi
+      cpu: 200m
+
+kong:
+  ingressClass: kong
+  corsPlugin:
+    name: cors-plugin
+    origins:
+      - http://localhost:3000
+      - http://9.223.16.228
+    credentials: true
+    methods:
+      - GET
+      - POST
+      - PUT
+      - DELETE
+      - OPTIONS
+  jwtPlugin:
+    name: jwt
+    header_names:
+      - authorization
+    cookie_names:
+      - jwt
+  consumer:
+    name: user-service-consumer
+    credentialSecretName: user-service-jwt-cred
+    key: user-service
+    algorithm: HS256
+    kongCredType: jwt
+    credentialType: jwt
+    username: user-service
+    # References the global JWT secret for Kong's credential
+    jwtSecretName: global-jwt-secret
+    jwtSecretKey: JWT_SECRET
+
+ingress:
+  public:
+    enabled: true
+  protected:
+    enabled: true
+  frontend:
+    enabled: true

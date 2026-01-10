@@ -91,3 +91,24 @@ spec:
                 name: invoice-to-pdf-service
                 port:
                   number: 8000
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: frontend
+  namespace: rac-app
+  annotations:
+    kubernetes.io/ingress.class: kong
+spec:
+  ingressClassName: kong
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 3000

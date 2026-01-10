@@ -25,8 +25,8 @@ spec:
     spec:
       containers:
         - name: invoice-to-pdf-service
-          image: invoice-to-pdf-service:latest
-          imagePullPolicy: Never
+          image: vidkal/invoice-to-pdf-service:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 8000
           envFrom:
@@ -34,11 +34,11 @@ spec:
                 name: invoice-to-pdf-service-config
           resources:
             requests:
-              memory: "256Mi"
-              cpu: "250m"
+              memory: "64Mi"
+              cpu: "50m"
             limits:
-              memory: "512Mi"
-              cpu: "500m"
+              memory: "128Mi"
+              cpu: "100m"
           livenessProbe:
             httpGet:
               path: /health

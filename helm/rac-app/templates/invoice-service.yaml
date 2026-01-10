@@ -1,0 +1,125 @@
+{{- if .Values.invoiceService.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: invoice-service-config
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: invoice-service
+    {{- include "rac-app.labels" . | nindent 4 }}
+data:
+  {{- range $key, $val := .Values.invoiceService.env }}
+  {{ $key }}: "{{ $val }}"
+  {{- end }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: invoice-service
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: invoice-service
+    {{- include "rac-app.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: invoice-service
+  template:
+    metadata:
+      labels:
+        app: invoice-service
+        {{- include "rac-app.labels" . | nindent 8 }}
+    spec:
+      initContainers:
+        - name: wait-for-db
+          image: postgres:15-alpine
+          command:
+            - sh
+            - -c
+            - |
+              until pg_isready -h postgres -p 5432 -U "${POSTGRES_USER}"; do
+                echo "Waiting for Postgres..."
+                sleep 2
+              done
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.global.secret.dbCredentialsSecretName }}
+                  key: {{ .Values.global.secret.dbUsernameKey }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.global.secret.dbCredentialsSecretName }}
+                  key: {{ .Values.global.secret.dbPasswordKey }}
+        - name: migrate
+          image: {{ .Values.invoiceService.image }}
+          command: ["alembic", "upgrade", "head"]
+          envFrom:
+            - configMapRef:
+                name: invoice-service-config
+          env:
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.global.secret.dbCredentialsSecretName }}
+                  key: {{ .Values.global.secret.dbUsernameKey }}
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.global.secret.dbCredentialsSecretName }}
+                  key: {{ .Values.global.secret.dbPasswordKey }}
+      containers:
+        - name: invoice-service
+          image: {{ .Values.invoiceService.image }}
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.invoiceService.port }}
+          envFrom:
+            - configMapRef:
+                name: invoice-service-config
+            - secretRef:
+              {{- toYaml (dict "name" .Values.invoiceService.secret.existingSecret "optional" true) | nindent 16 }}
+          env:
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.global.secret.dbCredentialsSecretName }}
+                  key: {{ .Values.global.secret.dbUsernameKey }}
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.global.secret.dbCredentialsSecretName }}
+                  key: {{ .Values.global.secret.dbPasswordKey }}
+          resources:
+            {{- toYaml .Values.invoiceService.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.invoiceService.port }}
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.invoiceService.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: invoice-service
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: invoice-service
+    {{- include "rac-app.labels" . | nindent 4 }}
+spec:
+  selector:
+    app: invoice-service
+  ports:
+    - port: {{ .Values.invoiceService.port }}
+      targetPort: {{ .Values.invoiceService.port }}
+  type: ClusterIP
+{{- end }}

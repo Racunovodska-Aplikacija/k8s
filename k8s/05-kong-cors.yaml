@@ -9,6 +9,7 @@ plugin: cors
 config:
   origins:
     - http://localhost:3000
+    - http://9.223.16.228
   credentials: true
   methods:
     - GET

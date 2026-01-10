@@ -32,10 +32,17 @@ spec:
       labels:
         app: invoice-service
     spec:
+      initContainers:
+        - name: migrate
+          image: vidkal/invoice-service:latest
+          command: ["alembic", "upgrade", "head"]
+          envFrom:
+            - configMapRef:
+                name: invoice-service-config
       containers:
         - name: invoice-service
-          image: invoice-service:latest
-          imagePullPolicy: Never
+          image: vidkal/invoice-service:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 8000
           envFrom:
@@ -43,11 +50,11 @@ spec:
                 name: invoice-service-config
           resources:
             requests:
-              memory: "256Mi"
-              cpu: "250m"
+              memory: "64Mi"
+              cpu: "50m"
             limits:
-              memory: "512Mi"
-              cpu: "500m"
+              memory: "128Mi"
+              cpu: "100m"
           livenessProbe:
             httpGet:
               path: /health

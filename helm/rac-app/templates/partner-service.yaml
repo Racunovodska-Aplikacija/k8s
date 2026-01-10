@@ -1,0 +1,97 @@
+{{- if .Values.partnerService.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: partner-service-config
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: partner-service
+    {{- include "rac-app.labels" . | nindent 4 }}
+data:
+  {{- range $key, $val := .Values.partnerService.env }}
+  {{ $key }}: "{{ $val }}"
+  {{- end }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: partner-service
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: partner-service
+    {{- include "rac-app.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: partner-service
+  template:
+    metadata:
+      labels:
+        app: partner-service
+        {{- include "rac-app.labels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: partner-service
+          image: {{ .Values.partnerService.image }}
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.partnerService.ports.http }}
+            - containerPort: {{ .Values.partnerService.ports.grpc }}
+              name: grpc
+          envFrom:
+            - configMapRef:
+                name: partner-service-config
+            - secretRef:
+              {{- toYaml (dict "name" .Values.partnerService.secret.existingSecret "optional" true) | nindent 16 }}
+          env:
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.global.secret.dbCredentialsSecretName }}
+                  key: {{ .Values.global.secret.dbUsernameKey }}
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.global.secret.dbCredentialsSecretName }}
+                  key: {{ .Values.global.secret.dbPasswordKey }}
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.global.secret.jwtSecretName }}
+                  key: {{ .Values.global.secret.jwtSecretKey }}
+          resources:
+            {{- toYaml .Values.partnerService.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.partnerService.ports.http }}
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.partnerService.ports.http }}
+            initialDelaySeconds: 5
+            periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: partner-service
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: partner-service
+    {{- include "rac-app.labels" . | nindent 4 }}
+spec:
+  selector:
+    app: partner-service
+  ports:
+    - name: http
+      port: {{ .Values.partnerService.ports.http }}
+      targetPort: {{ .Values.partnerService.ports.http }}
+    - name: grpc
+      port: {{ .Values.partnerService.ports.grpc }}
+      targetPort: {{ .Values.partnerService.ports.grpc }}
+  type: ClusterIP
+{{- end }}
