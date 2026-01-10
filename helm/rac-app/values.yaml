@@ -192,3 +192,37 @@ ingress:
     enabled: true
   frontend:
     enabled: true
+
+monitoring:
+  enabled: true
+
+  prometheus:
+    image: prom/prometheus:v2.50.1
+    scrapeInterval: 15s
+    evaluationInterval: 15s
+    metricsPath: /metrics
+    target:
+      service: invoice-service
+      port: 8000
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+
+  grafana:
+    image: grafana/grafana:10.3.3
+    adminUser: admin
+    adminPassword: admin
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+    service:
+      type: LoadBalancer
+      port: 80

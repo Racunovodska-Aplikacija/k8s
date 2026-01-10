@@ -1,0 +1,100 @@
+{{- if .Values.monitoring.enabled }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: grafana-admin
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: grafana
+    {{- include "rac-app.labels" . | nindent 4 }}
+type: Opaque
+stringData:
+  admin-user: {{ .Values.monitoring.grafana.adminUser | quote }}
+  admin-password: {{ .Values.monitoring.grafana.adminPassword | quote }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-provisioning
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: grafana
+    {{- include "rac-app.labels" . | nindent 4 }}
+data:
+  datasource.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        access: proxy
+        url: http://prometheus:9090
+        isDefault: true
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: grafana
+    {{- include "rac-app.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana
+  template:
+    metadata:
+      labels:
+        app: grafana
+        {{- include "rac-app.labels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: grafana
+          image: {{ .Values.monitoring.grafana.image }}
+          ports:
+            - name: http
+              containerPort: 3000
+          env:
+            - name: GF_SECURITY_ADMIN_USER
+              valueFrom:
+                secretKeyRef:
+                  name: grafana-admin
+                  key: admin-user
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: grafana-admin
+                  key: admin-password
+          volumeMounts:
+            - name: grafana-provisioning
+              mountPath: /etc/grafana/provisioning/datasources
+              readOnly: true
+          resources:
+            {{- toYaml .Values.monitoring.grafana.resources | nindent 12 }}
+      volumes:
+        - name: grafana-provisioning
+          configMap:
+            name: grafana-provisioning
+            items:
+              - key: datasource.yaml
+                path: datasource.yaml
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: grafana
+    {{- include "rac-app.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.monitoring.grafana.service.type }}
+  selector:
+    app: grafana
+  ports:
+    - name: http
+      port: {{ .Values.monitoring.grafana.service.port }}
+      targetPort: 3000
+{{- end }}
+
