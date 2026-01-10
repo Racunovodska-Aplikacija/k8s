@@ -26,6 +26,28 @@ spec:
                 name: user-service
                 port:
                   number: {{ .Values.userService.port }}
+          - path: /user-docs
+            pathType: Prefix
+            backend:
+              service:
+                name: user-service
+                port:
+                  number: {{ .Values.userService.port }}
+          - path: /company-docs
+            pathType: Prefix
+            backend:
+              service:
+                name: company-service
+                port:
+                  number: {{ .Values.companyService.ports.http }}
+          - path: /partner-docs
+            pathType: Prefix
+            backend:
+              service:
+                name: partner-service
+                port:
+                  number: {{ .Values.partnerService.ports.http }}
+              
 {{- end }}
 
 {{- if .Values.ingress.protected.enabled }}
