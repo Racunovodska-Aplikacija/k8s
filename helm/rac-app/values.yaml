@@ -101,6 +101,7 @@ userService:
 invoiceService:
   enabled: true
   image: vidkal/invoice-service:latest
+  replicas: 1
   port: 8000
   env:
     DB_HOST: postgres

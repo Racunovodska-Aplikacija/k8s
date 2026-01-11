@@ -21,7 +21,7 @@ metadata:
     app: invoice-service
     {{- include "rac-app.labels" . | nindent 4 }}
 spec:
-  replicas: 1
+  replicas: {{ .Values.invoiceService.replicas | default 1 }}
   selector:
     matchLabels:
       app: invoice-service
